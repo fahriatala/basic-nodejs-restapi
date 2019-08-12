@@ -3,17 +3,29 @@ const Product = require('../models/product');
 
 exports.orders_get_all = (req, res, next) => {
     Order.find()
-        .select('product quantity _id')
-        .populate('product', 'name price')
+        .select('product _id')
+        .populate('product', '_id name price')
         .exec()
         .then(docs => {
             res.status(200).json({
                 count: docs.length,
                 orders: docs.map(doc => {
+                    // let total = 0;
+                    console.log(doc.product)
+                const productData = Product.find({
+                    _id: {
+                        $in: doc.product
+                    }
+                });
+
+                    const total = productData.reduce((accumulate, item) => {
+                        accumulate += item.price;
+                        return accumulate;
+                    }, 0);
+                    console.log(total);
                     return {
                         _id: doc._id,
                         product: doc.product,
-                        quantity: doc.quantity,
                         request: {
                             type: 'GET',
                             url: 'http://localhost:3000/orders/' + doc._id
@@ -38,6 +50,8 @@ exports.orders_create_order = async (req, res, next) => {
             $in: products
         }
     });
+
+    console.log(productData);
 
     total = productData.reduce((accumulate, item) => {
         accumulate += item.price;
@@ -130,10 +144,20 @@ Order.findById(req.params.orderId)
 exports.orders_findby_product = async(req, res, next) => {
     try {
       const ordersData = await Order.find({ product : req.params.productId })
-                                    // .populate('product')
+                                    .populate('product', 'name price')
                                     .exec();
-      console.log(ordersData);
-      return res.json(ordersData);
+     let total = 0;
+    //   console.log(ordersData[0].total);
+    ordersData.forEach((od) => {
+        console.log(od.total);
+        total += od.total;
+      });
+      res.status(200).json({
+        message: 'Fetched Order Data By Product successfully.',
+        data: ordersData,
+        totalAmount: total
+      });
+    //   return res.json(ordersData);
     } catch(err){
       return res.send(err);
     }
